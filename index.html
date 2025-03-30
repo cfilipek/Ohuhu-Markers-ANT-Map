@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ohuhu and Copic Markers ANT Map</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f0ff;
+            margin: 0;
+            overflow: hidden;
+        }
+        svg {
+            width: 100vw;
+            height: 100vh;
+            background-image: url('/marker-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-color: rgba(255,255,255,0.8);
+            background-blend-mode: lighten;
+            opacity: 1;
+        }
+        circle, rect {
+            stroke: #8E7CC3;
+            stroke-width: 2px;
+            cursor: pointer;
+            transition: stroke-width 0.2s, opacity 0.2s;
+        }
+        circle:hover, rect:hover {
+            stroke-width: 4px;
+            opacity: 0.9;
+        }
+        text {
+            font-size: 12px;
+            fill: #6B4F82;
+            pointer-events: none;
+        }
+        .legend {
+            font-size: 16px;
+            fill: #333;
+        }
+        .description {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            max-width: 300px;
+            z-index: 100;
+        }
+        .legend-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .legend-color-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid #8E7CC3;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        .tooltip img {
+            max-width: 100%;
+            max-height: 150px;
+            display: block;
+            margin: 0 auto 10px auto;
+            border-radius: 3px;
+        }
+        .tooltip h3 {
+            margin-top: 0;
+            color: #6B4F82;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        .tooltip p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .tooltip a {
+            color: #8E7CC3;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        .tooltip a:hover {
+            text-decoration: underline;
+        }
+        .controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+        .controls button {
+            background-color: #8E7CC3;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin-right: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #6B4F82;
+        }
+        .link-label {
+            font-size: 10px;
+            fill: #6B4F82;
+            pointer-events: none;
+        }
+        .cluster-boundary {
+            fill: none;
+            stroke: #280d3f;
+            stroke-width: 1.5px;
+            stroke-dasharray: 5, 5;
+            opacity: 1;
+        }
+        .cluster-label {
+            font-size: 16px;
+            fill: #280d3f;
+            font-weight: bold;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="description">
+        <h3>Ohuhu and Copic Markers ANT Map</h3>
+        <p>This map visualizes the socio-ecology of Ohuhu and Copic markers, including production, distribution, communities, and competitors. Circles represent actants (non-human entities), while rectangles represent actors (human entities or organizations).</p>
+        <p><small>Click on nodes to see detailed information. Drag nodes to rearrange the network.</small></p>
+    </div>
+    <svg></svg>
+    <div class="legend-container">
+        <h3>Legend</h3>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #FF6F61;"></div>
+            <span class="legend">Actor: Ohuhu Company</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #A1C4E9;"></div>
+            <span class="legend">Actor: Copic Company</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #6BAED6;"></div>
+            <span class="legend">Actant: Manufacturing Facilities</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #31A354;"></div>
+            <span class="legend">Actant: Raw Materials</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #FDD835;"></div>
+            <span class="legend">Actor: Distributors/Retailers</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #FFB6C1;"></div>
+            <span class="legend">Actor: Consumers/Artists</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #9575CD;"></div>
+            <span class="legend">Actor: Online Communities</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #FFA07A;"></div>
+            <span class="legend">Actor: Art Supply Reviewers</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #B19CD9;"></div>
+            <span class="legend">Actor: Art Education</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #43ABC9;"></div>
+            <span class="legend">Actant: Technology</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #F39C12;"></div>
+            <span class="legend">Actant: Marker Products</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #26A69A;"></div>
+            <span class="legend">Actant: Environmental Factors</span>
+        </div>
+    </div>
+    <div class="tooltip"></div>
+    <div class="controls">
+        <button id="reset">Reset View</button>
+        <button id="toggle-clusters">Toggle Clusters</button>
+        <button id="toggle-labels">Toggle Labels</button>
+    </div>
+    <script>
+        // Define the data for nodes and links
+        const nodes = [
+            // Ohuhu Ecosystem
+            { 
+                id: "Ohuhu Company", 
+                size: 22, 
+                color: "#FF6F61", 
+                type: "actor", 
+                url: "https://ohuhu.com/",
+                cluster: "Ohuhu Ecosystem",
+                description: "Chinese art supply company known for affordable alcohol markers and other art supplies.",
+                image: "/ohuhu-company.jpg"
+            },
+            { 
+                id: "Ohuhu Manufacturing", 
+                size: 15, 
+                color: "#6BAED6", 
+                type: "actant",
+                cluster: "Ohuhu Ecosystem",
+                description: "Facilities where Ohuhu markers are produced, primarily located in China.",
+                image: "/manufacturing.jpg"
+            },
+            { 
+                id: "Ohuhu Markers", 
+                size: 18, 
+                color: "#F39C12", 
+                type: "actant",
+                cluster: "Ohuhu Ecosystem",
+                description: "Alcohol-based markers known for affordability and quality, popular among beginners and budget-conscious artists.",
+                image: "/ohuhu-markers.jpg"
+            },
+            { 
+                id: "Ohuhu R&D", 
+                size: 14, 
+                color: "#43ABC9", 
+                type: "actant",
+                cluster: "Ohuhu Ecosystem",
+                description: "Research and development team responsible for improving Ohuhu marker formulations and designs.",
+                image: "/rd-lab.jpg"
+            },
+            { 
+                id: "Ohuhu Marketing", 
+                size: 16, 
+                color: "#FF6F61", 
+                type: "actor",
+                cluster: "Ohuhu Ecosystem",
+                description: "Team responsible for Ohuhu's brand positioning as an affordable alternative to premium markers.",
+                image: "/marketing.jpg"
+            },
+            
+            // Copic Ecosystem
+            { 
+                id: "Copic Company", 
+                size: 22, 
+                color: "#A1C4E9", 
+                type: "actor", 
+                url: "https://copic.jp/en/",
+                cluster: "Copic Ecosystem",
+                description: "Japanese company (Too Corporation) that produces premium alcohol markers considered the industry standard.",
+                image: "/copic-company.jpg"
+            },
+            { 
+                id: "Copic Manufacturing", 
+                size: 15, 
+                color: "#6BAED6", 
+                type: "actant",
+                cluster: "Copic Ecosystem",
+                description: "Japanese facilities where Copic markers are produced with strict quality control.",
+                image: "/manufacturing.jpg"
+            },
+            { 
+                id: "Copic Markers", 
+                size: 18, 
+                color: "#F39C12", 
+                type: "actant",
+                cluster: "Copic Ecosystem",
+                description: "Premium alcohol-based markers known for quality, refillable design, and replaceable nibs.",
+                image: "/copic-markers.jpg"
+            },
+            { 
+                id: "Copic R&D", 
+                size: 14, 
+                color: "#43ABC9", 
+                type: "actant",
+                cluster: "Copic Ecosystem",
+                description: "Research team that developed Copic's patented marker technologies and color systems.",
+                image: "/rd-lab.jpg"
+            },
+            { 
+                id: "Copic Marketing", 
+                size: 16, 
+                color: "#A1C4E9", 
+                type: "actor",
+                cluster: "Copic Ecosystem",
+                description: "Team that established Copic as the premium brand in the marker industry.",
+                image: "/marketing.jpg"
+            },
+            
+            // Raw Materials
+            { 
+                id: "Alcohol Suppliers", 
+                size: 14, 
+                color: "#31A354", 
+                type: "actant",
+                cluster: "Raw Materials",
+                description: "Companies that supply the alcohol base for both Ohuhu and Copic markers.",
+                image: "/alcohol-supply.jpg"
+            },
+            { 
+                id: "Dye Manufacturers", 
+                size: 14, 
+                color: "#31A354", 
+                type: "actant",
+                cluster: "Raw Materials",
+                description: "Suppliers of dyes and pigments that give markers their color properties.",
+                image: "/dye-manufacturing.jpg"
+            },
+            { 
+                id: "Plastic Components", 
+                size: 14, 
+                color: "#31A354", 
+                type: "actant",
+                cluster: "Raw Materials",
+                description: "Suppliers of plastic barrels, caps, and other components for marker construction.",
+                image: "/plastic-components.jpg"
+            },
+            { 
+                id: "Nib Manufacturers", 
+                size: 14, 
+                color: "#31A354", 
+                type: "actant",
+                cluster: "Raw Materials",
+                description: "Specialized manufacturers of marker nibs with different shapes and properties.",
+                image: "/nib-manufacturing.jpg"
+            },
+            
+            // Distribution
+            { 
+                id: "Distributors and Retailers", 
+                size: 18, 
+                color: "#FDD835", 
+                type: "actor",
+                cluster: "Distribution",
+                description: "Companies that distribute art supplies to various retail channels.",
+                image: "/distribution.jpg"
+            },
+            { 
+                id: "Michaels", 
+                size: 16, 
+                color: "#FDD835", 
+                type: "actor", 
+                url: "https://www.michaels.com/",
+                cluster: "Distribution",
+                description: "Major arts and crafts retailer in North America that carries both Ohuhu and Copic markers.",
+                image: "/michaels.jpg"
+            },
+            { 
+                id: "Amazon", 
+                size: 16, 
+                color: "#FDD835", 
+                type: "actor", 
+                url: "https://www.amazon.com/",
+                cluster: "Distribution",
+                description: "E-commerce giant that has become a major distribution channel for art supplies.",
+                image: "/amazon.jpg"
+            },
+            { 
+                id: "Blick Art Materials", 
+                size: 16, 
+                color: "#FDD835", 
+                type: "actor", 
+                url: "https://www.dickblick.com/",
+                cluster: "Distribution",
+                description: "Specialized art supply retailer known for carrying a wide range of markers.",
+                image: "/blick.jpg"
+            },
+            { 
+                id: "JetPens", 
+                size: 15, 
+                color: "#FDD835", 
+                type: "actor", 
+                url: "https://www.jetpens.com/",
+                cluster: "Distribution",
+                description: "Online retailer specializing in Japanese stationery and art supplies, including Copic markers.",
+                image: "/jetpens.jpg"
+            },
+            
+            // Consumers
+            { 
+                id: "Professional Artists", 
+                size: 18, 
+                color: "#FFB6C1", 
+                type: "actor",
+                cluster: "Consumers",
+                description: "Professional illustrators and designers who typically prefer Copic for client work.",
+                image: "/professional-artist.jpg"
+            },
+            { 
+                id: "Hobbyists", 
+                size: 18, 
+                color: "#FFB6C1", 
+                type: "actor",
+                cluster: "Consumers",
+                description: "Casual artists who often choose Ohuhu as an affordable alternative.",
+                image: "/hobbyist.jpg"
+            },
+            { 
+                id: "Students", 
+                size: 16, 
+                color: "#FFB6C1", 
+                type: "actor",
+                cluster: "Consumers",
+                description: "Art students who may start with Ohuhu and graduate to Copic as they advance.",
+                image: "/art-student.jpg"
+            },
+            
+            // Communities
+            { 
+                id: "Reddit Communities", 
+                size: 16, 
+                color: "#9575CD", 
+                type: "actor", 
+                url: "https://www.reddit.com/r/Ohuhu/",
+                cluster: "Communities",
+                description: "Online forums where artists discuss and compare marker brands and techniques.",
+                image: "/reddit.jpg"
+            },
+            { 
+                id: "Instagram Art Community", 
+                size: 18, 
+                color: "#9575CD", 
+                type: "actor", 
+                url: "https://www.instagram.com/explore/tags/copicmarkers/",
+                cluster: "Communities",
+                description: "Visual social media platform where artists showcase their marker artwork.",
+                image: "/instagram.jpg"
+            },
+            { 
+                id: "YouTube Art Channels", 
+                size: 18, 
+                color: "#9575CD", 
+                type: "actor", 
+                url: "https://www.youtube.com/results?search_query=ohuhu+vs+copic",
+                cluster: "Communities",
+                description: "Content creators who demonstrate techniques and compare marker brands.",
+                image: "/youtube.jpg"
+            },
+            
+            // Reviewers
+            { 
+                id: "Art Supply Reviewers", 
+                size: 16, 
+                color: "#FFA07A", 
+                type: "actor",
+                cluster: "Reviewers",
+                description: "Individuals and publications that test and review art supplies, influencing consumer choices.",
+                image: "/reviewer.jpg"
+            },
+            { 
+                id: "Comparison Videos", 
+                size: 15, 
+                color: "#FFA07A", 
+                type: "actor",
+                cluster: "Reviewers",
+                description: "Content specifically comparing Ohuhu and Copic markers, often highlighting price-to-performance ratio.",
+                image: "/comparison.jpg"
+            },
+            
+            // Education
+            { 
+                id: "Art Schools", 
+                size: 16, 
+                color: "#B19CD9", 
+                type: "actor",
+                cluster: "Education",
+                description: "Educational institutions that often recommend specific marker brands in their curricula.",
+                image: "/art-school.jpg"
+            },
+            { 
+                id: "Marker Techniques", 
+                size: 15, 
+                color: "#B19CD9", 
+                type: "actor",
+                cluster: "Education",
+                description: "Teaching methodologies specific to alcohol marker usage and blending techniques.",
+                image: "/techniques.jpg"
+            },
+            
+            // Technology
+            { 
+                id: "Color Matching Systems", 
+                size: 15, 
+                color: "#43ABC9", 
+                type: "actant",
+                cluster: "Technology",
+                description: "Digital and physical systems for matching and organizing marker colors.",
+                image: "/color-matching.jpg"
+            },
+            { 
+                id: "Digital Integration", 
+                size: 15, 
+                color: "#43ABC9", 
+                type: "actant",
+                cluster: "Technology",
+                description: "Software that simulates marker effects or helps transition between physical and digital art.",
+                image: "/digital-integration.jpg"
+            },
+            
+            // Environmental Factors
+            { 
+                id: "Sustainability Concerns", 
+                size: 15, 
+                color: "#26A69A", 
+                type: "actant",
+                cluster: "Environmental Factors",
+                description: "Environmental impact of marker production, including plastic waste and chemical disposal.",
+                image: "/sustainability.jpg"
+            },
+            { 
+                id: "Refillable Systems", 
+                size: 15, 
+                color: "#26A69A", 
+                type: "actant",
+                cluster: "Environmental Factors",
+                description: "Copic's refillable design as an environmentally friendly feature compared to disposable markers.",
+                image: "/refillable.jpg"
+            }
+        ];
+
+        const links = [
+            // Ohuhu internal connections
+            { source: "Ohuhu Company", target: "Ohuhu Manufacturing", relationship: "operates" },
+            { source: "Ohuhu Manufacturing", target: "Ohuhu Markers", relationship: "produces" },
+            { source: "Ohuhu Company", target: "Ohuhu R&D", relationship: "funds" },
+            { source: "Ohuhu R&D", target: "Ohuhu Markers", relationship: "improves" },
+            { source: "Ohuhu Company", target: "Ohuhu Marketing", relationship: "directs" },
+            { source: "Ohuhu Marketing", target: "Ohuhu Markers", relationship: "promotes" },
+            
+            // Copic internal connections
+            { source: "Copic Company", target: "Copic Manufacturing", relationship: "operates" },
+            { source: "Copic Manufacturing", target: "Copic Markers", relationship: "produces" },
+            { source: "Copic Company", target: "Copic R&D", relationship: "funds" },
+            { source: "Copic R&D", target: "Copic Markers", relationship: "improves" },
+            { source: "Copic Company", target: "Copic Marketing", relationship: "directs" },
+            { source: "Copic Marketing", target: "Copic Markers", relationship: "promotes" },
+            
+            // Raw materials connections
+            { source: "Alcohol Suppliers", target: "Ohuhu Manufacturing", relationship: "supplies" },
+            { source: "Alcohol Suppliers", target: "Copic Manufacturing", relationship: "supplies" },
+            { source: "Dye Manufacturers", target: "Ohuhu Manufacturing", relationship: "supplies" },
+            { source: "Dye Manufacturers", target: "Copic Manufacturing", relationship: "supplies" },
+            { source: "Plastic Components", target: "Ohuhu Manufacturing", relationship: "supplies" },
+            { source: "Plastic Components", target: "Copic Manufacturing", relationship: "supplies" },
+            { source: "Nib Manufacturers", target: "Ohuhu Manufacturing", relationship: "supplies" },
+            { source: "Nib Manufacturers", target: "Copic Manufacturing", relationship: "supplies" },
+            
+            // Distribution connections
+            { source: "Ohuhu Company", target: "Distributors and Retailers", relationship: "sells through" },
+            { source: "Copic Company", target: "Distributors and Retailers", relationship: "sells through" },
+            { source: "Distributors and Retailers", target: "Michaels", relationship: "includes" },
+            { source: "Distributors and Retailers", target: "Amazon", relationship: "includes" },
+            { source: "Distributors and Retailers", target: "Blick Art Materials", relationship: "includes" },
+            { source: "Distributors and Retailers", target: "JetPens", relationship: "includes" },
+            
+            // Consumer connections
+            { source: "Ohuhu Markers", target: "Hobbyists", relationship: "used by" },
+            { source: "Ohuhu Markers", target: "Students", relationship: "used by" },
+            { source: "Copic Markers", target: "Professional Artists", relationship: "preferred by" },
+            { source: "Copic Markers", target: "Students", relationship: "aspired to by" },
+            { source: "Professional Artists", target: "Hobbyists", relationship: "influences" },
+            
+            // Community connections
+            { source: "Hobbyists", target: "Reddit Communities", relationship: "participates in" },
+            { source: "Students", target: "Reddit Communities", relationship: "participates in" },
+            { source: "Professional Artists", target: "Instagram Art Community", relationship: "showcases in" },
+            { source: "Hobbyists", target: "Instagram Art Community", relationship: "follows" },
+            { source: "Professional Artists", target: "YouTube Art Channels", relationship: "creates" },
+            { source: "Hobbyists", target: "YouTube Art Channels", relationship: "learns from" },
+            
+            // Reviewer connections
+            { source: "Ohuhu Markers", target: "Art Supply Reviewers", relationship: "reviewed by" },
+            { source: "Copic Markers", target: "Art Supply Reviewers", relationship: "reviewed by" },
+            { source: "Art Supply Reviewers", target: "Comparison Videos", relationship: "creates" },
+            { source: "Comparison Videos", target: "Hobbyists", relationship: "influences" },
+            
+            // Education connections
+            { source: "Art Schools", target: "Copic Markers", relationship: "recommends" },
+            { source: "Art Schools", target: "Marker Techniques", relationship: "teaches" },
+            { source: "Marker Techniques", target: "Professional Artists", relationship: "used by" },
+            { source: "Marker Techniques", target: "Students", relationship: "learned by" },
+            
+            // Technology connections
+            { source: "Copic Markers", target: "Color Matching Systems", relationship: "integrated with" },
+            { source: "Ohuhu Markers", target: "Color Matching Systems", relationship: "adapted to" },
+            { source: "Professional Artists", target: "Digital Integration", relationship: "utilizes" },
+            { source: "Digital Integration", target: "Marker Techniques", relationship: "simulates" },
+            
+            // Environmental connections
+            { source: "Ohuhu Manufacturing", target: "Sustainability Concerns", relationship: "impacts" },
+            { source: "Copic Manufacturing", target: "Sustainability Concerns", relationship: "addresses" },
+            { source: "Copic Markers", target: "Refillable Systems", relationship: "features" },
+            { source: "Refillable Systems", target: "Sustainability Concerns", relationship: "reduces" },
+            
+            // Direct competition and influence
+            { source: "Ohuhu Company", target: "Copic Company", relationship: "competes with" },
+            { source: "Copic Markers", target: "Ohuhu Markers", relationship: "influences design of" },
+            { source: "Ohuhu Marketing", target: "Copic Marketing", relationship: "responds to" },
+            { source: "Ohuhu R&D", target: "Copic Markers", relationship: "benchmarks against" }
+        ];
+
+        // Create the SVG and tooltip elements
+        const svg = d3.select("svg");
+        const tooltip = d3.select(".tooltip");
+        
+        // Create a force simulation
+        const simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2))
+            .force("collide", d3.forceCollide().radius(d => d.size * 1.5));
+
+        // Group nodes by cluster
+        const clusters = {};
+        nodes.forEach(node => {
+            if (!clusters[node.cluster]) {
+                clusters[node.cluster] = [];
+            }
+            clusters[node.cluster].push(node);
+        });
+
+        // Create cluster hulls
+        const clusterGroup = svg.append("g").attr("class", "clusters");
+        
+        function drawClusters() {
+            clusterGroup.selectAll("*").remove();
+            
+            Object.entries(clusters).forEach(([clusterName, clusterNodes]) => {
+                if (clusterNodes.length < 2) return;
+                
+                // Calculate the centroid of the cluster
+                const x = d3.mean(clusterNodes, d => d.x);
+                const y = d3.mean(clusterNodes, d => d.y);
+                
+                // Calculate the radius based on the distance to the furthest node
+                const radius = d3.max(clusterNodes, d => 
+                    Math.sqrt(Math.pow(d.x - x, 2) + Math.pow(d.y - y, 2))
+                ) + 50;
+                
+                // Draw the cluster boundary
+                clusterGroup.append("circle")
+                    .attr("cx", x)
+                    .attr("cy", y)
+                    .attr("r", radius)
+                    .attr("class", "cluster-boundary");
+                
+                // Add cluster label
+                clusterGroup.append("text")
+                    .attr("x", x)
+                    .attr("y", y - radius - 10)
+                    .attr("text-anchor", "middle")
+                    .attr("class", "cluster-label")
+                    .text(clusterName);
+            });
+        }
+
+        // Create the links
+        const link = svg.append("g")
+            .selectAll("line")
+            .data(links)
+            .enter().append("line")
+            .style("stroke", "#BFA2DB")
+            .style("stroke-width", 2);
+
+        // Create link labels
+        const linkLabels = svg.append("g")
+            .selectAll("text")
+            .data(links)
+            .enter().append("text")
+            .attr("class", "link-label")
+            .text(d => d.relationship)
+            .style("display", "none");
+
+        // Create the node groups
+        const node = svg.append("g")
+            .selectAll("g")
+            .data(nodes)
+            .enter().append("g")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended))
+            .on("mouseover", showTooltip)
+            .on("mouseout", hideTooltip)
+            .on("click", nodeClicked);
+
+        // Add shapes to nodes (circles for actants, rectangles for actors)
+        node.each(function(d) {
+            if (d.type === "actor") {
+                d3.select(this).append("rect")
+                    .attr("width", d.size * 2)
+                    .attr("height", d.size * 2)
+                    .attr("x", -d.size)
+                    .attr("y", -d.size)
+                    .attr("fill", d.color);
+            // } else {
+            //     d3  -d.size)
+            //         .attr("fill", d.color);
+            } else {
+                d3.select(this).append("circle")
+                    .attr("r", d.size)
+                    .attr("fill", d.color);
+            }
+        });
+
+        // Add labels to nodes
+        node.append("text")
+            .attr("x", d => d.type === "actor" ? 0 : 0)
+            .attr("y", d => d.size + 10)
+            .attr("text-anchor", "middle")
+            .text(d => d.id)
+            .style("font-size", "12px")
+            .style("fill", "#6B4F82");
+
+        // Update positions on each tick of the simulation
+        simulation.on("tick", function() {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            linkLabels
+                .attr("x", d => (d.source.x + d.target.x) / 2)
+                .attr("y", d => (d.source.y + d.target.y) / 2);
+
+            node.attr("transform", d => `translate(${d.x}, ${d.y})`);
+            
+            if (document.getElementById("toggle-clusters").dataset.visible === "true") {
+                drawClusters();
+            }
+        });
+
+        // Tooltip functions
+        // Add this line for displaying images: ${d.image ? `<img src="${d.image}" alt="${d.id}">` : ''}
+        function showTooltip(event, d) {
+            const tooltipContent = `
+                <h3>${d.id}</h3>
+                <p>${d.description || 'No description available.'}</p>
+                ${d.url ? `<a href="${d.url}" target="_blank">Visit website</a>` : ''}
+                <p><strong>Type:</strong> ${d.type === 'actor' ? 'Actor (human/organization)' : 'Actant (non-human)'}</p>
+                <p><strong>Cluster:</strong> ${d.cluster}</p>
+            `;
+            
+            tooltip.html(tooltipContent)
+                .style("left", (event.pageX + 15) + "px")
+                .style("top", (event.pageY - 30) + "px")
+                .style("opacity", 1);
+        }
+
+        function hideTooltip() {
+            tooltip.style("opacity", 0);
+        }
+
+        function nodeClicked(event, d) {
+            if (d.url) {
+                window.open(d.url, "_blank");
+            }
+            
+            // Highlight connections
+            link.style("stroke", l => 
+                (l.source.id === d.id || l.target.id === d.id) ? "#FF6F61" : "#BFA2DB"
+            ).style("stroke-width", l => 
+                (l.source.id === d.id || l.target.id === d.id) ? 3 : 2
+            ).style("opacity", l => 
+                (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.3
+            );
+            
+            node.style("opacity", n => 
+                (n.id === d.id || links.some(l => 
+                    (l.source.id === d.id && l.target.id === n.id) || 
+                    (l.target.id === d.id && l.source.id === n.id)
+                )) ? 1 : 0.3
+            );
+            
+            // Show relationship labels for the selected node
+            linkLabels.style("display", l => 
+                (l.source.id === d.id || l.target.id === d.id) ? "block" : "none"
+            );
+            
+            // Reset after 3 seconds
+            setTimeout(() => {
+                link.style("stroke", "#BFA2DB").style("stroke-width", 2).style("opacity", 1);
+                node.style("opacity", 1);
+                linkLabels.style("display", "none");
+            }, 3000);
+        }
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Control buttons functionality
+        document.getElementById("reset").addEventListener("click", function() {
+            simulation.alpha(1).restart();
+            link.style("stroke", "#BFA2DB").style("stroke-width", 2).style("opacity", 1);
+            node.style("opacity", 1);
+            linkLabels.style("display", "none");
+            
+            // Reset node positions
+            nodes.forEach(node => {
+                node.x = window.innerWidth / 2 + (Math.random() - 0.5) * 500;
+                node.y = window.innerHeight / 2 + (Math.random() - 0.5) * 500;
+                node.fx = null;
+                node.fy = null;
+            });
+        });
+
+        document.getElementById("toggle-clusters").addEventListener("click", function() {
+            const button = document.getElementById("toggle-clusters");
+            const isVisible = button.dataset.visible === "true";
+            
+            button.dataset.visible = isVisible ? "false" : "true";
+            
+            if (isVisible) {
+                clusterGroup.selectAll("*").remove();
+            } else {
+                drawClusters();
+            }
+        });
+        
+        document.getElementById("toggle-clusters").dataset.visible = "false";
+
+        document.getElementById("toggle-labels").addEventListener("click", function() {
+            const currentDisplay = node.select("text").style("display");
+            node.selectAll("text").style("display", currentDisplay === "none" ? "block" : "none");
+        });
+
+        // Initial layout
+        simulation.alpha(1).restart();
+    </script>
+</body>
+</html>
+
